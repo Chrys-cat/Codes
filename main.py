@@ -3,9 +3,7 @@ from tkinter import ttk
 
 from config import STUDENT_FILE, STUDENT_FIELDS, PROGRAM_FILE, PROGRAM_FIELDS, COLLEGE_FILE, COLLEGE_FIELDS
 from utils import ensure_file
-from college_tab import CollegeTab
-from program_tab import ProgramTab
-from student_tab import StudentTab
+from tabs import StudentTab, ProgramTab, CollegeTab
 
 
 class SISApp:

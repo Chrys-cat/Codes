@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from config import COLLEGE_FILE, COLLEGE_FIELDS, PROGRAM_FILE, PROGRAM_FIELDS
+from config import COLLEGE_FILE, COLLEGE_FIELDS, PROGRAM_FILE
 from utils import load_data, save_data
 
 
