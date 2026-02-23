@@ -77,8 +77,24 @@ class StudentTab:
             lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.bind("<Configure>",
             lambda e: canvas.itemconfig(self.canvas_window, width=e.width))
-        canvas.bind("<MouseWheel>",
-            lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+        def _on_mousewheel(event):
+            # Windows/macOS use delta; Linux uses Button-4/5
+            if event.num == 4:
+                canvas.yview_scroll(-1, "units")
+            elif event.num == 5:
+                canvas.yview_scroll(1, "units")
+            else:
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_mousewheel(widget):
+            widget.bind("<MouseWheel>", _on_mousewheel)
+            widget.bind("<Button-4>",   _on_mousewheel)
+            widget.bind("<Button-5>",   _on_mousewheel)
+
+        self._bind_mousewheel = _bind_mousewheel
+        _bind_mousewheel(canvas)
+        _bind_mousewheel(self.rows_frame)
 
         # pagination controls
         pg = tk.Frame(self.tab)
@@ -154,12 +170,14 @@ class StudentTab:
             values = [s.get(f, "") for f in STUDENT_FIELDS]
 
             for col_idx, (val, w) in enumerate(zip(values, COL_WIDTHS)):
-                tk.Label(self.rows_frame, text=val, bg=bg,
-                         width=w // 7, anchor="w").grid(
-                    row=row_idx, column=col_idx, padx=4, pady=2, sticky="w")
+                lbl = tk.Label(self.rows_frame, text=val, bg=bg,
+                               width=w // 7, anchor="w")
+                lbl.grid(row=row_idx, column=col_idx, padx=4, pady=2, sticky="w")
+                self._bind_mousewheel(lbl)
 
             af = tk.Frame(self.rows_frame, bg=bg)
             af.grid(row=row_idx, column=len(STUDENT_FIELDS), padx=4, pady=2)
+            self._bind_mousewheel(af)
             tk.Button(af, text="Edit",   width=5, bg="#4a90d9", fg="white",
                       command=lambda v=values: self._fill_form(v)).pack(side="left", padx=2)
             tk.Button(af, text="Delete", width=6, bg="#d9534f", fg="white",
