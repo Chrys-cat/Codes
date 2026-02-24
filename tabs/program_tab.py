@@ -14,6 +14,7 @@ class ProgramTab:
     def __init__(self, notebook):
         self.tab = ttk.Frame(notebook)
         notebook.add(self.tab, text="Programs")
+        self._editing_code = None
         self._build_ui()
         self.tab.after(100, self.refresh)
 
@@ -31,6 +32,10 @@ class ProgramTab:
 
         btn_frame = tk.Frame(self.tab)
         btn_frame.pack(pady=6)
+        self.save_edit_btn = tk.Button(btn_frame, text="Save Edit", width=9,
+                                       command=self._commit_edit,
+                                       bg="#5cb85c", fg="white")
+        # not packed yet — only shown when editing
         tk.Button(btn_frame, text="Add",   width=9, command=self.add).pack(side="left", padx=4)
         tk.Button(btn_frame, text="Clear", width=9, command=self._clear).pack(side="left", padx=4)
 
@@ -79,11 +84,17 @@ class ProgramTab:
     def _clear(self):
         for entry in self.entries.values():
             entry.delete(0, tk.END)
+        self._editing_code = None
+        if hasattr(self, "save_edit_btn"):
+            self.save_edit_btn.pack_forget()
 
     def _fill_form(self, values):
         self._clear()
         for field, val in zip(PROGRAM_FIELDS, values):
             self.entries[field].insert(0, val)
+        self._editing_code = values[0]  # first field is always "code"
+        self.save_edit_btn.pack(side="left", padx=4)
+        self.save_edit_btn.lift()
 
     def refresh(self):
         for widget in self.rows_frame.winfo_children():
@@ -117,6 +128,33 @@ class ProgramTab:
             messagebox.showerror("Error", "Program code already exists.")
             return
         programs.append(data)
+        save_data(PROGRAM_FILE, PROGRAM_FIELDS, programs)
+        self.refresh()
+        self._clear()
+
+    def _commit_edit(self):
+        if not self._editing_code:
+            messagebox.showerror("Error", "No program selected for editing.")
+            return
+        data = {f: self.entries[f].get().strip() for f in PROGRAM_FIELDS}
+        if not any(c["code"] == data["college_code"] for c in load_data(COLLEGE_FILE)):
+            messagebox.showerror("Error", "College does not exist.")
+            return
+        programs = load_data(PROGRAM_FILE)
+        # If the code changed, ensure it doesn't clash with another record
+        if data["code"] != self._editing_code:
+            if any(p["code"] == data["code"] for p in programs):
+                messagebox.showerror("Error", "Program code already exists.")
+                return
+            # Cascade the code change to all students enrolled in this program
+            from config import STUDENT_FIELDS
+            students = load_data(STUDENT_FILE)
+            for s in students:
+                if s.get("program_code") == self._editing_code:
+                    s["program_code"] = data["code"]
+            save_data(STUDENT_FILE, STUDENT_FIELDS, students)
+        # Replace the matching record in place
+        programs = [data if p["code"] == self._editing_code else p for p in programs]
         save_data(PROGRAM_FILE, PROGRAM_FIELDS, programs)
         self.refresh()
         self._clear()
