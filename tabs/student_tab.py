@@ -39,8 +39,13 @@ class StudentTab:
 
         btn_frame = tk.Frame(self.tab)
         btn_frame.pack(pady=6)
+        self.save_edit_btn = tk.Button(btn_frame, text="Save Edit", width=9,
+                                       command=self._commit_edit,
+                                       bg="#5cb85c", fg="white")
+        # not packed yet — only shown when editing
         tk.Button(btn_frame, text="Add",   width=9, command=self.add).pack(side="left", padx=4)
         tk.Button(btn_frame, text="Clear", width=9, command=self._clear).pack(side="left", padx=4)
+        self._editing_id = None
 
         # search bar
         sf = tk.Frame(self.tab)
@@ -111,12 +116,18 @@ class StudentTab:
     def _clear(self):
         for entry in self.entries.values():
             entry.delete(0, tk.END)
+        self._editing_id = None
+        if hasattr(self, "save_edit_btn"):
+            self.save_edit_btn.pack_forget()
 
     def _fill_form(self, values):
         self._clear()
         for field, val in zip(STUDENT_FIELDS, values):
             self.entries[field].insert(0, val)
-
+        self._editing_id = values[0]  # first field is always "id"
+        self.save_edit_btn.pack(side="left", padx=4)
+        self.save_edit_btn.lift()
+            
     def _on_search(self):
         if not hasattr(self, "rows_frame"):
             return
@@ -218,22 +229,37 @@ class StudentTab:
         self.refresh()
         self._clear()
 
-    def _save_edit(self, data, win):
-        if not any(p["code"] == data["program_code"].get().strip()
-                   for p in load_data(PROGRAM_FILE)):
+    def _commit_edit(self):
+        if not self._editing_id:
+            messagebox.showerror("Error", "No student selected for editing.")
+            return
+        data = {f: self.entries[f].get().strip() for f in STUDENT_FIELDS}
+        if not data["firstname"] or not data["lastname"]:
+            messagebox.showerror("Error", "First and last name cannot be empty.")
+            return
+        if not any(p["code"] == data["program_code"] for p in load_data(PROGRAM_FILE)):
             messagebox.showerror("Error", "Program does not exist.")
+            return
+        if not data["year"].isdigit() or not (1 <= int(data["year"]) <= 5):
+            messagebox.showerror("Error", "Year must be a number between 1 and 5.")
+            return
+        if not data["gender"]:
+            messagebox.showerror("Error", "Gender cannot be empty.")
             return
         students = load_data(STUDENT_FILE)
         for s in students:
-            if s["id"] == data["id"]:
+            if s["id"] == self._editing_id:
                 for f in STUDENT_FIELDS:
                     if f != "id":
-                        s[f] = data[f].get().strip()
+                        s[f] = data[f]
                 save_data(STUDENT_FILE, STUDENT_FIELDS, students)
                 self.refresh()
-                win.destroy()
+                self._clear()
                 return
         messagebox.showerror("Error", "Student not found.")
+
+    def _save_edit(self, data, win):
+        pass  # superseded by _commit_edit
 
     def _delete(self, sid):
         if not messagebox.askyesno("Confirm", f"Delete student {sid}?"):
